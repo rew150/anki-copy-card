@@ -37,6 +37,7 @@
   async function fire(_event: Event) {
     _event.preventDefault()
     msg = "";
+    back = back.replaceAll("\n", "<br />");
     const response = await fetch('http://localhost:8765', {
       method: 'POST',
       body: JSON.stringify({
@@ -105,7 +106,7 @@
 <div>Custom Kanji: <br /><input bind:value={kanji} onchange={onKanjiKana} /></div>
 <div>Custom Kana: <br /><input bind:value={kana} onchange={onKanjiKana} /></div>
 <div>Front: <br /><input bind:value={front} /></div>
-<div>Back: <br /><input bind:value={back} /></div>
+<div>Back: <br /><textarea bind:value={back}></textarea></div>
 
 <button onclick={fire} >Fire</button>
 
