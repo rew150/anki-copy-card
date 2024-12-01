@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { fetch } from "@tauri-apps/plugin-http";
   import sanitizeHtml from 'sanitize-html';
+  import { invoke } from '@tauri-apps/api/core';
   interface Field {
     value: string
     order: number
@@ -34,53 +34,51 @@
     front = `${kanji}[${kana}]`
   }
 
+  async function anki(action: string, params: any = undefined): Promise<any> {
+    let res_json: any = await invoke("anki_request", {action, ...(params === undefined ? {} : {params})})
+    return res_json
+  }
+
   async function fire(_event: Event) {
     _event.preventDefault()
     msg = "";
     back = back.replaceAll("\n", "<br />");
-    const response = await fetch('http://localhost:8765', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: "guiCurrentCard",
-        version: 6,
-      })
-    });
-    console.log(response.status)
-    const cardData: GuiCurrentCard = await response.json();
+    let cardData: GuiCurrentCard;
+    try {
+      cardData = await anki("guiCurrentCard");
+    } catch (error) {
+      msg = ""+ error;
+      return
+    }
     if (!cardData) {
-      msg = "card data missing"
       return
     }
-    if (cardData.error) {
-      msg = `card data error ${""+cardData.error}`
-      return
-    }
+
+    console.log(cardData)
     const fields = cardData.result.fields;
     const sentence = sanitizeHtml(fields.SentenceBack.value, {allowedTags: []});
-    const res2 = await fetch("http://localhost:8765", {
-      method: "POST",
-      body: JSON.stringify({
-        action: "guiAddCards",
-        version: 6,
-        params: {
-          note: {
-            deckName: "Immersion",
-            modelName: "Immersion",
-            fields: {
-              Front: front || `${fields.Kanji.value}[${fields.Kana.value}]`,
-              Back: back || fields.Meaning.value,
-              "Back Paragraph": `${sentence}<br />${fields.Picture.value}`,
-              AudioGuide: kanji || fields.Kanji.value,
-              Audio: fields.KankenAudio.value,
-            },
-            tags: [
-              "Immersion",
-              "from::KanKenDeck"
-            ],
-          }
+    try {
+      await anki("guiAddCards", {
+        note: {
+          deckName: "Immersion",
+          modelName: "Immersion",
+          fields: {
+            Front: front || `${fields.Kanji.value}[${fields.Kana.value}]`,
+            Back: back || fields.Meaning.value,
+            "Back Paragraph": `${sentence}<br />${fields.Picture.value}`,
+            AudioGuide: kanji || fields.Kanji.value,
+            Audio: fields.KankenAudio.value,
+          },
+          tags: [
+            "Immersion",
+            "from::KanKenDeck"
+          ],
         }
       })
-    })
+    } catch (error) {
+      msg = ""+error
+      return
+    }
     kanji = ""
     kana = ""
     front = ""
@@ -89,16 +87,7 @@
 
   async function handleBack(_event: Event) {
     _event.preventDefault()
-    const response = await fetch('http://localhost:8765', {
-      method: 'POST',
-      body: JSON.stringify({
-        action: "guiDeckReview",
-        version: 6,
-        params: {
-          name: deckname 
-        }
-      })
-    });
+    await anki('guiDeckReview', {name: deckname})
   }
 
 </script>
